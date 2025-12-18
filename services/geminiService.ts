@@ -76,6 +76,7 @@ const STORYBOARD_SCHEMA: Schema = {
     title: { type: Type.STRING },
     scene_count: { type: Type.INTEGER },
     character_bible: { type: Type.STRING, description: "Complete visual description of ALL main characters. This MUST be included in every video_prompt for consistency." },
+    historical_context: { type: Type.STRING, description: "Brief historical context for the entire story - era, location, key historical facts" },
     scenes: {
       type: Type.ARRAY,
       items: {
@@ -85,15 +86,17 @@ const STORYBOARD_SCHEMA: Schema = {
           description: { type: Type.STRING },
           prompt_ar: { type: Type.STRING, description: "Detailed scene prompt in Arabic" },
           prompt_en: { type: Type.STRING, description: "Detailed scene prompt in English" },
-          voiceover_fusha: { type: Type.STRING, description: "Voiceover script in Standard Arabic (Fusha)" },
-          voiceover_egyptian: { type: Type.STRING, description: "Voiceover script in Egyptian Arabic (Ammeya)" },
+          voiceover_fusha: { type: Type.STRING, description: "Voiceover script in Standard Arabic (Fusha) - educational and historically accurate" },
           camera: { type: Type.STRING },
           style: { type: Type.STRING },
-          // New Veo 3.1 Video Fields
+          // Veo 3.1 Video Fields
           video_prompt: { type: Type.STRING, description: "Complete English video prompt for Veo 3.1. MUST include full character descriptions, camera movement, scene action, mood, and technical specs." },
           camera_movement: { type: Type.STRING, description: "Camera movement type: 'static', 'dolly in', 'dolly out', 'pan left', 'pan right', 'tilt up', 'tilt down', 'orbit', 'tracking', 'crane up', 'crane down'" },
           scene_duration: { type: Type.INTEGER, description: "Scene duration in seconds (default: 8)" },
           mood: { type: Type.STRING, description: "Emotional tone: 'tense', 'joyful', 'mysterious', 'calm', 'exciting', 'sad', 'romantic'" },
+          // Historical Accuracy Fields
+          historical_facts: { type: Type.STRING, description: "Key verified historical facts mentioned in this scene - dates, events, people, architectural details" },
+          historical_period: { type: Type.STRING, description: "The historical era/period: e.g., 'Roman Era (146 BC - 439 AD)', 'Byzantine Period', 'Islamic Golden Age'" },
           image_generation: {
             type: Type.OBJECT,
             properties: {
@@ -102,11 +105,11 @@ const STORYBOARD_SCHEMA: Schema = {
             }
           }
         },
-        required: ["scene_number", "description", "prompt_ar", "prompt_en", "voiceover_fusha", "voiceover_egyptian", "video_prompt", "camera_movement", "scene_duration", "mood", "image_generation"]
+        required: ["scene_number", "description", "prompt_ar", "prompt_en", "voiceover_fusha", "video_prompt", "camera_movement", "scene_duration", "mood", "historical_facts", "historical_period", "image_generation"]
       }
     }
   },
-  required: ["title", "scene_count", "character_bible", "scenes"]
+  required: ["title", "scene_count", "character_bible", "historical_context", "scenes"]
 };
 
 
@@ -215,6 +218,81 @@ export const enhanceDescription = async (
   }
 };
 
+// Research Historical Location - Auto-fetch facts using AI
+export interface LocationResearch {
+  location_name: string;
+  historical_era: string;
+  key_facts: string[];
+  landmarks: string[];
+  notable_figures: string[];
+  historical_significance: string;
+  recommended_scenes: string[];
+}
+
+export const researchLocation = async (
+  locationName: string,
+  lang: Lang
+): Promise<{ research: LocationResearch } | ErrorResponse> => {
+  try {
+    const prompt = lang === 'ar'
+      ? `أنت مؤرخ خبير. ابحث عن الموقع التاريخي: "${locationName}"
+
+قدم معلومات موثقة ودقيقة فقط. إذا كنت غير متأكد، قل ذلك.
+
+أريد:
+1. الحقبة التاريخية (مثال: "العصر الروماني 146 ق.م - 439 م")
+2. 5-8 حقائق تاريخية رئيسية موثقة
+3. المعالم والآثار الموجودة
+4. الشخصيات التاريخية المرتبطة بالموقع
+5. الأهمية التاريخية للموقع
+6. 8 أفكار لمشاهد وثائقية مدتها 8 ثوانٍ لكل منها
+
+أجب بالعربية الفصحى.`
+      : `You are an expert historian. Research the historical location: "${locationName}"
+
+Provide ONLY verified, accurate information. If unsure, say so.
+
+I need:
+1. Historical era (e.g., "Roman Period 146 BC - 439 AD")
+2. 5-8 key verified historical facts
+3. Existing landmarks and archaeological sites
+4. Notable historical figures connected to the location
+5. Historical significance of the location
+6. 8 documentary scene ideas (8 seconds each)
+
+Respond in English.`;
+
+    const schema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        location_name: { type: Type.STRING },
+        historical_era: { type: Type.STRING },
+        key_facts: { type: Type.ARRAY, items: { type: Type.STRING } },
+        landmarks: { type: Type.ARRAY, items: { type: Type.STRING } },
+        notable_figures: { type: Type.ARRAY, items: { type: Type.STRING } },
+        historical_significance: { type: Type.STRING },
+        recommended_scenes: { type: Type.ARRAY, items: { type: Type.STRING } }
+      },
+      required: ["location_name", "historical_era", "key_facts", "landmarks", "historical_significance", "recommended_scenes"]
+    };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    });
+
+    const result = JSON.parse(response.text || '{}');
+
+    return { research: result as LocationResearch };
+  } catch (e: any) {
+    return createError(e.message);
+  };
+};
+
 export const generateCharacterProfiles = async (
   script: string,
   lang: Lang
@@ -251,56 +329,119 @@ export const generateStoryPlan = async (
   const startTime = Date.now();
   try {
     const prompt = `
-You are a professional Storyboard Artist, Director, and Video Prompt Engineer.
+You are a professional Storyboard Artist, Director, Historian, and Educational Content Creator.
 Create a coherent story plan with EXACTLY ${sceneCount} scenes based on this idea: "${script}".
 Style: ${style}.
-Language for voiceovers: Arabic (Fusha and Egyptian). Language for video_prompt: English.
+Language for voiceovers: Arabic (Fusha - Standard Arabic ONLY). Language for video_prompt: English.
+
+=== HISTORICAL ACCURACY IS MANDATORY ===
+
+You MUST research and verify ALL historical information before including it. This is educational content.
+- Use accurate dates, names, events, and descriptions
+- Include specific architectural details that match the historical period
+- Mention real historical figures, their actual achievements, and correct time periods
+- Describe authentic clothing, tools, and customs of the era
+- NEVER fabricate or guess historical facts - only include verified information
 
 === CRITICAL INSTRUCTIONS ===
 
-1. **CHARACTER BIBLE** (Top Priority):
-   - Create a detailed "character_bible" field with COMPLETE visual descriptions of ALL main characters.
-   - Include: Name, age, height, body type, skin tone, face shape, eye color, hair style/color, facial hair, clothing, accessories, distinguishing features.
-   - Example: "Ahmed: A 35-year-old Egyptian man, tall (185cm), athletic build, olive skin, oval face, brown eyes, short black curly hair, trimmed beard, warm smile. Wearing a navy blue linen shirt, khaki pants, brown leather sandals, silver watch on left wrist."
+1. **HISTORICAL CONTEXT** (Top Priority):
+   - Create a "historical_context" field with: Era name, exact date range, location, key historical significance
+   - Example: "Roman Tunisia (Ifriqiya) - The city of Uthina (Oudna) was founded as a Roman colony around 30 BC under Emperor Augustus. It became a prosperous agricultural center known for olive oil production. The amphitheater seated 16,000 spectators and was built in the 2nd century AD."
 
-2. **VIDEO PROMPT** (For Veo 3.1 - ENGLISH ONLY):
-   Each scene's "video_prompt" MUST follow this structure:
+2. **CHARACTER HANDLING** (CRITICAL FOR REFERENCE-BASED GENERATION):
    
-   [SHOT TYPE]: [CAMERA MOVEMENT]
+   IMPORTANT: The user will provide a CHARACTER REFERENCE IMAGE in Nano Banana Pro.
+   Therefore, you must NOT describe the character's appearance in image_generation.prompt!
    
-   SCENE: [Detailed action description with environment, lighting, time of day]
+   - The character_bible field can contain a brief description for internal use
+   - But image_generation.prompt MUST NEVER include character appearance details
+   - Just use "Same character [NAME] from reference" and describe the SCENE only
    
-   CHARACTER IDENTITY (PRESERVE EXACTLY FROM CHARACTER BIBLE):
-   [Copy the FULL character descriptions here - do NOT abbreviate]
+   BAD (DO NOT DO THIS):
+   "Same character فارس from reference. A young man, Faris, mid-20s, athletic build, 
+    tan skin, brown eyes, short dark hair, linen tunic, leather boots..."
    
-   STYLE: ${style}, [lighting description], [atmosphere]
+   GOOD (DO THIS):
+   "Same character فارس from reference. Wide shot. At entrance of ancient ruins, 
+    looking up in wonder. Golden hour light, soft shadows. Pixar style, cinematic."
+
+3. **IMAGE_GENERATION.PROMPT** (For Nano Banana Pro - ENGLISH ONLY):
    
-   AUDIO: "[Arabic voiceover text]" - spoken naturally over 8 seconds
+   Each scene's image_generation.prompt MUST follow this EXACT structure:
    
-   TECHNICAL: 16:9 aspect ratio, cinematic color grading, smooth motion, 8 seconds duration
+   "Same character [NAME] from reference. [SHOT TYPE]. [SCENE DESCRIPTION]. [LIGHTING]. [STYLE]."
+   
+   RULES:
+   - Start with "Same character [NAME] from reference"
+   - NO character appearance (age, hair, clothes, skin) - reference image provides this!
+   - Describe only: location, action, camera angle, lighting, atmosphere
+   - End with style (e.g., "Pixar style, cinematic")
+   - MAX 40 words
+   
+   EXAMPLES:
+   - "Same character فارس from reference. Wide shot. Standing at ancient Roman amphitheater entrance, looking up in awe. Golden hour, warm shadows. Pixar style, cinematic."
+   - "Same character فارس from reference. Close-up. Hand touching weathered stone column with carvings. Soft natural light. Pixar style."
+   - "Same character فارس from reference. Tracking shot. Walking through temple ruins. Bright midday sun. Pixar style, cinematic."
 
-3. **CAMERA MOVEMENTS** (Choose appropriate for each scene):
-   - "static" - No movement, focus on emotion/dialogue
-   - "dolly in" - Move toward subject, build tension/intimacy
-   - "dolly out" - Pull away, reveal context
-   - "pan left/right" - Horizontal sweep, reveal environment
-   - "tilt up/down" - Vertical movement, show scale
-   - "orbit" - Circle around subject, dynamic energy
-   - "tracking" - Follow subject movement
-   - "crane up/down" - Dramatic vertical rise/fall
+4. **PER-SCENE HISTORICAL ACCURACY**:
+   - "historical_facts": Specific verified facts presented in this scene
+   - "historical_period": The exact era with dates
+   - Voiceover must contain ONLY accurate historical information
 
-4. **SCENE DURATION**: Always 8 seconds per scene.
+5. **VIDEO PROMPT** (For Veo 3.1 with IMAGE REFERENCE - ENGLISH ONLY):
+   
+   CRITICAL: The generated scene image will be used as reference. DO NOT describe character appearance.
+   Focus on: MOTION, ACTION, CAMERA, ATMOSPHERE, LIGHTING.
+   
+   Each video_prompt MUST be SHORT and follow this EXACT structure:
+   
+   "[CAMERA MOVE]. [CHARACTER ACTION]. [ENVIRONMENT DETAIL]. [LIGHTING/MOOD]. 8 seconds."
+   
+   GOOD EXAMPLES:
+   - "Slow dolly in. Girl walks toward ancient ruins, looking up in wonder. Golden hour sun casts long shadows across Roman columns. Dust particles float in warm light. 8 seconds."
+   - "Crane up and pull back. Character stands at amphitheater center, slowly turns to take in the massive stone seats. Soft morning mist. Cinematic. 8 seconds."
+   - "Tracking shot following character. She traces her hand along weathered stone wall while walking. Dappled sunlight through olive trees. 8 seconds."
+   - "Static wide shot. Character sits on ancient steps, opens a book. Wind gently moves her hair. Warm afternoon glow. 8 seconds."
+   
+   BAD (TOO LONG, DON'T DO THIS):
+   - "CRANE UP: Dolly out slowly. SCENE: A young girl, Layla, walks towards..." (Character description not needed!)
+   
+   VIDEO PROMPT RULES:
+   - MAX 50 words per prompt
+   - Start with camera movement
+   - Use present tense action verbs (walks, looks, touches, sits, stands, runs)
+   - Include ONE atmospheric detail (lighting, weather, particles)
+   - End with "8 seconds"
+   - NO character appearance descriptions (image reference provides this)
 
-5. **MOOD** per scene: Choose from: "tense", "joyful", "mysterious", "calm", "exciting", "sad", "romantic", "dramatic", "peaceful", "comedic"
+6. **8-SCENE DOCUMENTARY STRUCTURE**:
+   - Scene 1 (ARRIVAL): Wide establishing shot, character enters location
+   - Scene 2 (DISCOVERY): Character explores, notices key landmark
+   - Scene 3 (DETAIL): Close-up interaction with historical element
+   - Scene 4 (HISTORY): Character at significant spot, voiceover shares key facts
+   - Scene 5 (EXPLORATION): Walking through different area of site
+   - Scene 6 (WONDER): Emotional moment, character appreciates the place
+   - Scene 7 (LEARNING): Character examines artifacts/inscriptions
+   - Scene 8 (FAREWELL): Character looks back, sunset/golden hour, closing
 
-6. **VOICEOVERS** (Arabic):
-   - 'voiceover_fusha': Professional Standard Arabic (Formal/Dramatic)
-   - 'voiceover_egyptian': Egyptian Arabic Dialect (Natural/Conversational)
-   - Each voiceover must be timed to fit within 8 seconds when spoken naturally.
+7. **CAMERA MOVEMENTS** (Choose one per scene, vary them):
+   - "Static shot" (no movement, steady frame)
+   - "Slow dolly in" (camera moves toward subject)
+   - "Pull back" (camera moves away from subject)
+   - "Pan left/right" (camera rotates horizontally)
+   - "Tilt up/down" (camera rotates vertically)
+   - "Orbit" (camera circles around subject)
+   - "Tracking shot" (camera follows moving subject)
+   - "Crane up" (camera lifts vertically)
 
-7. **IMAGE GENERATION PROMPT**: Include full character descriptions for image consistency.
+8. **VOICEOVER** (Arabic Fusha ONLY):
+   - Professional Standard Arabic (الفصحى)
+   - Educational tone with specific historical facts
+   - Each voiceover ~20-25 words (fits 8 seconds spoken naturally)
+   - NO Egyptian dialect
 
-8. **NARRATIVE COHERENCE**: Scenes must form a complete story with beginning, middle, and end.
+8. **NARRATIVE COHERENCE**: Scenes form a complete educational journey with emotional arc.
 
 Return valid JSON matching the schema.
 `;
@@ -346,48 +487,56 @@ export const generateImageBatch = async (
     let effectivePrompt = "";
 
     if (mode === 'scene') {
-      // Story Mode Prompting - ULTRA STRICT CHARACTER CONSISTENCY
+      // Story Mode Prompting - OPTIMIZED FOR VEO 3.1 VIDEO REFERENCE
       if (base64Images.length > 0) {
-        // CRITICAL: Character reference comes FIRST with absolute identity lock
+        // Character reference + Video-ready scene
         effectivePrompt = `
-=== ABSOLUTE CHARACTER IDENTITY LOCK ===
-The input reference image(s) show the EXACT character that MUST appear in ALL output images.
+=== CHARACTER IDENTITY (FROM REFERENCE IMAGE) ===
+The reference image shows the EXACT character. Copy their appearance EXACTLY:
+- Same face, hair, skin tone, age
+- Same clothing and accessories
+- Same art style (${style})
 
-MANDATORY - COPY EXACTLY FROM REFERENCE (NO CHANGES ALLOWED):
-✓ SAME face shape, nose shape, eye shape, eye color, eyebrow thickness
-✓ SAME skin tone and complexion (exact shade)
-✓ SAME hair style, hair color, hair length
-✓ SAME age appearance (if child, KEEP as child - do NOT age up)
-✓ SAME body proportions and build
-✓ SAME outfit, clothing colors, and accessories
-✓ SAME any distinctive features (hat, glasses, backpack, etc.)
+=== OUTPUT IMAGE REQUIREMENTS ===
+Generate a HIGH QUALITY scene image optimized for VIDEO GENERATION:
 
-STRICTLY FORBIDDEN - DO NOT:
-✗ DO NOT change ANY facial features
-✗ DO NOT change skin color or tone
-✗ DO NOT change hair style or color
-✗ DO NOT change clothes or accessories
-✗ DO NOT make the character look older or younger
-✗ DO NOT add or remove any accessories (hats, bags, etc.)
-✗ DO NOT change the art style of the character (if reference is Pixar, keep Pixar)
-✗ DO NOT stylize or cartoonize differently than the reference
+COMPOSITION:
+- Character clearly visible, not cropped
+- Clean, uncluttered background
+- Strong foreground/background separation
+- Cinematic 16:9 framing
+
+LIGHTING (CRITICAL FOR VIDEO):
+- Neutral, even lighting (no harsh shadows)
+- Golden hour or soft diffused light preferred
+- Avoid complex multi-source lighting
+- Consistent light direction
+
+TECHNICAL:
+- Sharp focus on character
+- Smooth, film-like color grading
+- No text, logos, or watermarks
+- Static pose (easier for video animation)
 
 === SCENE TO GENERATE ===
 ${prompt}
 
-RENDERING INSTRUCTIONS:
-- Place the EXACT character from reference into this scene
-- Match the reference's art style: ${style}
-- The character's identity is MORE IMPORTANT than the scene - if there's any conflict, preserve the character
+STYLE: ${style}, cinematic, film quality, 4K detail
 `;
       } else {
-        // No uploaded characters - Rely on detailed text description
-        effectivePrompt = `Generate a high quality story scene. Style: ${style}.
-Scene Description: "${prompt}".
+        // No uploaded characters - Generate with description
+        effectivePrompt = `Generate a cinematic scene image optimized for video generation.
 
-CHARACTER CONSISTENCY INSTRUCTION:
-Ensure the character described in the prompt maintains EXACTLY the same appearance throughout.
-Do NOT change any facial features, clothing, or accessories from the description.`;
+STYLE: ${style}
+SCENE: ${prompt}
+
+QUALITY REQUIREMENTS:
+- Cinematic 16:9 composition
+- Neutral, even lighting
+- Clear subject focus
+- No text or watermarks
+- Film-like color grading
+- Sharp details, 4K quality`;
       }
     } else if (mode === 'edit') {
       // Specific Edit Mode for Scenes or Images

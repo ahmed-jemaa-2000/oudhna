@@ -105,8 +105,7 @@ export interface StoryScene {
   description: string; // The visual description used for generation
   prompt_ar?: string; // Prompt in Arabic
   prompt_en?: string; // Prompt in English
-  voiceover_fusha?: string; // Voiceover in Standard Arabic
-  voiceover_egyptian?: string; // Voiceover in Egyptian Arabic
+  voiceover_fusha?: string; // Voiceover in Standard Arabic (Fusha)
   camera: string;
   style: string;
   image_url?: string; // Generated image
@@ -121,6 +120,22 @@ export interface StoryScene {
   scene_duration?: number;      // Duration in seconds (default: 8)
   character_bible?: string;     // Full character description repeated for consistency
   mood?: string;                // Emotional tone: "tense", "joyful", "mysterious", etc.
+  // Historical Accuracy Fields
+  historical_facts?: string;    // Verified historical facts mentioned in this scene
+  historical_period?: string;   // e.g., "Roman Era (146 BC - 439 AD)"
+  historical_sources?: string;  // Sources for the historical information
+  stop_id?: string;             // Which tour stop this scene belongs to
+}
+
+// Documentary Tour Mode - Multi-Stop Journey
+export interface TourStop {
+  id: string;
+  name_ar: string;              // Arabic name: "أوذنة"
+  name_en: string;              // English name: "Oudna"
+  location_photos: string[];    // 1-3 reference images for this stop
+  knowledge_base: string;       // User's verified historical facts
+  scene_count: number;          // Number of 8-second scenes for this stop
+  scenes?: StoryScene[];        // Generated scenes for this stop
 }
 
 export interface StoryboardResponse extends BaseResponse {
@@ -128,7 +143,10 @@ export interface StoryboardResponse extends BaseResponse {
   plan: {
     title: string;
     scene_count: number;
+    historical_context?: string;   // Overall tour historical context
+    character_bible?: string;      // Character visual description
     scenes: StoryScene[];
+    stops?: TourStop[];            // Multi-stop tour data
   }
 }
 

@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { BookOpen, User, Film, Play, Download, Edit, Eye, Wand2, X, Plus, Languages, Mic, Mic2, AlignLeft, Users, ChevronDown, Copy, Video, Clock, MapPin, Building2 } from 'lucide-react';
+import { BookOpen, User, Film, Play, Download, Edit, Eye, Wand2, X, Plus, Languages, Mic, AlignLeft, Users, ChevronDown, Copy, Video, Clock, MapPin, Building2, Trash2, Route } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
-import { Lang, StoryScene, UIContext, CharacterProfile } from '../types';
+import { Lang, StoryScene, UIContext, CharacterProfile, TourStop } from '../types';
 import * as GeminiService from '../services/geminiService';
 import * as HistoryService from '../services/historyService';
 
@@ -15,10 +15,23 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
     const [script, setScript] = useState('');
     const [style, setStyle] = useState('Pixar'); // Default to Pixar
     const [aspect, setAspect] = useState('16:9');
-    const [sceneCount, setSceneCount] = useState(6);
     const [protagonists, setProtagonists] = useState<string[]>([]);
-    const [locationRefs, setLocationRefs] = useState<string[]>([]); // Location/Background references
     const [generatedHeroes, setGeneratedHeroes] = useState<CharacterProfile[]>([]);
+
+    // Character Profile (Explorer)
+    const [characterName, setCharacterName] = useState('');
+    const [characterAge, setCharacterAge] = useState('10-15');
+
+    // Single Location Mode (8 scenes × 8 seconds = 64 seconds)
+    const [locationNameAr, setLocationNameAr] = useState('');
+    const [locationNameEn, setLocationNameEn] = useState('');
+    const [locationPhotos, setLocationPhotos] = useState<string[]>([]);
+    const [knowledgeBase, setKnowledgeBase] = useState('');
+    const FIXED_SCENE_COUNT = 8; // Fixed 8 scenes for structured documentary
+
+    // Export Modal
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportTab, setExportTab] = useState<'character' | 'scenes' | 'video' | 'voiceover'>('character');
 
     const [scenes, setScenes] = useState<StoryScene[]>([]);
     const [isPlanning, setIsPlanning] = useState(false);
@@ -60,24 +73,103 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
         setProtagonists(prev => prev.filter((_, i) => i !== index));
     };
 
-    // Location Reference Handlers
-    const handleLocationUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const fileList = Array.from(e.target.files);
-            fileList.forEach((file: File) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    if (typeof reader.result === 'string') {
-                        setLocationRefs(prev => [...prev, reader.result as string]);
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
-        }
+    // Location Photo Handlers (max 3 photos)
+    const handleLocationPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || locationPhotos.length >= 3) return;
+        const fileList = Array.from(e.target.files);
+        fileList.forEach((file: File) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (typeof reader.result === 'string') {
+                    setLocationPhotos(prev => prev.length < 3 ? [...prev, reader.result as string] : prev);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
     };
 
-    const removeLocationRef = (index: number) => {
-        setLocationRefs(prev => prev.filter((_, i) => i !== index));
+    const removeLocationPhoto = (index: number) => {
+        setLocationPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Fixed 8 scenes × 8 seconds = 64 seconds
+    const totalDuration = FIXED_SCENE_COUNT * 8;
+
+    // AI Research for location
+    const [isResearching, setIsResearching] = useState(false);
+
+    // Generate Character DNA for export
+    const generateCharacterDNA = () => {
+        const name = characterName || (lang === 'ar' ? 'المستكشف' : 'Explorer');
+        const ageLang = lang === 'ar' ?
+            (characterAge === '5-9' ? '٧ سنوات' : characterAge === '10-15' ? '١٢ سنة' : '١٨ سنة') :
+            (characterAge === '5-9' ? '7 years old' : characterAge === '10-15' ? '12 years old' : '18 years old');
+
+        return lang === 'ar'
+            ? `${name}: نفس الشخصية من الصورة المرجعية. ${ageLang}، بشرة زيتونية دافئة. يرتدي ملابس مستكشف عصرية. أسلوب ${style}.`
+            : `${name}: Same character from reference image. ${ageLang}, warm olive skin. Modern explorer outfit. ${style} style.`;
+    };
+
+    const handleResearchLocation = async () => {
+        const locationName = locationNameAr || locationNameEn;
+        if (!locationName) {
+            alert(lang === 'ar' ? 'يرجى إدخال اسم الموقع أولاً' : 'Please enter location name first');
+            return;
+        }
+
+        setIsResearching(true);
+        const result = await GeminiService.researchLocation(locationName, lang);
+
+        if ('research' in result) {
+            const research = result.research;
+            const explorerName = characterName || (lang === 'ar' ? 'المستكشف' : 'the explorer');
+
+            // Format the research into knowledge base text
+            const formattedFacts = [
+                `📍 ${research.location_name}`,
+                `📅 ${research.historical_era}`,
+                '',
+                lang === 'ar' ? '📚 الحقائق التاريخية:' : '📚 Historical Facts:',
+                ...research.key_facts.map(f => `• ${f}`),
+                '',
+                lang === 'ar' ? '🏛️ المعالم:' : '🏛️ Landmarks:',
+                ...research.landmarks.map(l => `• ${l}`),
+                '',
+                lang === 'ar' ? '📖 الأهمية:' : '📖 Significance:',
+                research.historical_significance
+            ].join('\n');
+
+            setKnowledgeBase(formattedFacts);
+
+            // Generate character-aware script with 8 scene structure
+            const characterScript = lang === 'ar'
+                ? `رحلة ${explorerName} إلى ${research.location_name}:
+
+المشهد 1 (الوصول): ${explorerName} يصل إلى ${research.location_name}، ينظر بإعجاب إلى الأطلال العريقة.
+المشهد 2 (الاكتشاف): ${explorerName} يكتشف ${research.landmarks[0] || 'المعالم الأثرية'}.
+المشهد 3 (التفاصيل): ${explorerName} يتأمل التفاصيل المعمارية القديمة.
+المشهد 4 (التاريخ): ${explorerName} يستمع إلى قصة ${research.location_name}: ${research.key_facts[0] || ''}.
+المشهد 5 (الاستكشاف): ${explorerName} يتجول في ${research.landmarks[1] || 'أرجاء الموقع'}.
+المشهد 6 (الإعجاب): ${explorerName} يقف مندهشاً أمام عظمة الحضارة القديمة.
+المشهد 7 (التعلم): ${explorerName} يقرأ النقوش ويتعلم ${research.key_facts[1] || 'عن التاريخ'}.
+المشهد 8 (الوداع): ${explorerName} ينظر إلى ${research.location_name} مع غروب الشمس، يعد بالعودة.`
+                : `${explorerName}'s Journey to ${research.location_name}:
+
+Scene 1 (Arrival): ${explorerName} arrives at ${research.location_name}, looking up at ancient ruins in wonder.
+Scene 2 (Discovery): ${explorerName} discovers ${research.landmarks[0] || 'the archaeological sites'}.
+Scene 3 (Detail): ${explorerName} examines ancient architectural details.
+Scene 4 (History): ${explorerName} learns: ${research.key_facts[0] || ''}.
+Scene 5 (Exploration): ${explorerName} walks through ${research.landmarks[1] || 'the site'}.
+Scene 6 (Wonder): ${explorerName} stands in awe of ancient civilization.
+Scene 7 (Learning): ${explorerName} reads inscriptions, discovering ${research.key_facts[1] || 'history'}.
+Scene 8 (Farewell): ${explorerName} gazes at ${research.location_name} at sunset, promising to return.`;
+
+            setScript(characterScript);
+        } else {
+            alert(lang === 'ar' ? 'فشل البحث. حاول مرة أخرى.' : 'Research failed. Please try again.');
+        }
+
+        setIsResearching(false);
     };
 
     const handleEnhanceScript = async () => {
@@ -144,8 +236,8 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
         setIsGeneratingHeroes(false);
     };
 
-    // Step 2: Generate Story
-    const handleCreateStory = async () => {
+    // Step 2: Generate Story (planOnly = true skips image generation)
+    const handleCreateStory = async (planOnly: boolean = false) => {
         if (!script) return;
         setIsPlanning(true);
         setScenes([]);
@@ -155,68 +247,81 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
 
         if (!hasCharacters) {
             setIsPlanning(false);
-            // This state should theoretically be prevented by UI disabling, but as a fallback:
             alert(lang === 'ar' ? 'يرجى إنشاء أبطال القصة أولاً.' : 'Please create story heroes first.');
             return;
         }
 
-        // 1. Generate Text Plan
-        const res = await GeminiService.generateStoryPlan(script, style, lang, sceneCount);
+        // Build knowledge base context
+        const knowledgeBaseContext = knowledgeBase.trim()
+            ? `=== ${locationNameAr || locationNameEn || 'Location'} ===\n${knowledgeBase}`
+            : '';
+
+        // Enhanced script with knowledge base
+        const enhancedScript = knowledgeBaseContext
+            ? `${script}\n\n=== USER-PROVIDED HISTORICAL FACTS (USE ONLY THESE) ===\n${knowledgeBaseContext}`
+            : script;
+
+        // 1. Generate Text Plan (fixed 8 scenes)
+        const res = await GeminiService.generateStoryPlan(enhancedScript, style, lang, FIXED_SCENE_COUNT);
         if (res.type === 'storyboard') {
             const textScenes = res.plan.scenes.map(s => ({ ...s, isLoading: true }));
             setScenes(textScenes);
             setIsPlanning(false); // Stop main loading, switch to per-scene loading
 
-            // 2. Generate Images for each scene
-            const updatedScenes = [...textScenes];
-            const uiContext: UIContext = { translateButtonId: '', languageToggleId: '', enhanceButtonId: '', generateButtonId: 'btn-story-gen', descriptionFieldId: '' };
+            // 2. Generate Images for each scene (skip if planOnly)
+            if (!planOnly) {
+                const updatedScenes = [...textScenes];
+                const uiContext: UIContext = { translateButtonId: '', languageToggleId: '', enhanceButtonId: '', generateButtonId: 'btn-story-gen', descriptionFieldId: '' };
 
-            // Collect all reference images: Character References + Location References
-            // Characters: Manual Uploads (Priority) OR Generated Heroes
-            const characterRefs = [
-                ...protagonists,
-                ...generatedHeroes.map(h => h.image_url).filter(url => !!url) as string[]
-            ];
+                // Character references
+                const characterRefs = [
+                    ...protagonists,
+                    ...generatedHeroes.map(h => h.image_url).filter(url => !!url) as string[]
+                ];
 
-            // Combine all references: Characters first, then locations
-            // Note: The geminiService prompt structure handles character vs location appropriately
-            const allReferenceImages = [...characterRefs, ...locationRefs];
+                // Combine all references: Characters + Location photos
+                const allReferenceImages = [...characterRefs, ...locationPhotos];
 
-            for (let i = 0; i < updatedScenes.length; i++) {
-                const scene = updatedScenes[i];
+                for (let i = 0; i < updatedScenes.length; i++) {
+                    const scene = updatedScenes[i];
 
-                // Build enhanced prompt with location context if available
-                let scenePrompt = scene.image_generation.prompt || scene.description;
-                if (locationRefs.length > 0) {
-                    scenePrompt = `LOCATION REFERENCE: Use the location/architecture from reference images as the background. Match the exact architecture, textures, and atmosphere.\n\n${scenePrompt}`;
+                    // Build enhanced prompt with location context
+                    let scenePrompt = scene.image_generation.prompt || scene.description;
+                    if (locationPhotos.length > 0) {
+                        scenePrompt = `LOCATION REFERENCE: Use the location/architecture from reference images as the background. Match the exact architecture, textures, and atmosphere.\n\n${scenePrompt}`;
+                    }
+
+                    const imgRes = await GeminiService.generateImageBatch(
+                        scenePrompt,
+                        allReferenceImages,
+                        aspect,
+                        1,
+                        uiContext,
+                        'scene',
+                        style
+                    );
+
+                    if (imgRes.type === 'batchEdits' && imgRes.results[0].outputs.length > 0) {
+                        updatedScenes[i].image_url = imgRes.results[0].outputs[0].image_url;
+                    }
+                    updatedScenes[i].isLoading = false;
+                    setScenes([...updatedScenes]);
                 }
 
-                const imgRes = await GeminiService.generateImageBatch(
-                    scenePrompt,
-                    allReferenceImages,
-                    aspect,
-                    1,
-                    uiContext,
-                    'scene',
-                    style
-                );
-
-                if (imgRes.type === 'batchEdits' && imgRes.results[0].outputs.length > 0) {
-                    updatedScenes[i].image_url = imgRes.results[0].outputs[0].image_url;
-                }
-                updatedScenes[i].isLoading = false;
-                setScenes([...updatedScenes]);
+                // Save to History
+                await HistoryService.saveItem({
+                    id: `story-${Date.now()}`,
+                    timestamp: Date.now(),
+                    type: 'story',
+                    title: res.plan.title,
+                    script: script,
+                    scenes: updatedScenes
+                });
+            } else {
+                // Plan only: Mark scenes as ready (no images)
+                const scenesWithoutLoading = textScenes.map(s => ({ ...s, isLoading: false }));
+                setScenes(scenesWithoutLoading);
             }
-
-            // Save to History
-            await HistoryService.saveItem({
-                id: `story-${Date.now()}`,
-                timestamp: Date.now(),
-                type: 'story',
-                title: res.plan.title,
-                script: script,
-                scenes: updatedScenes
-            });
 
         } else {
             setIsPlanning(false);
@@ -244,7 +349,7 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
       Re-generate the scene image implementing this change while keeping the same characters and style.`;
 
         // Add location context if available
-        if (locationRefs.length > 0) {
+        if (locationPhotos.length > 0) {
             combinedPrompt = `LOCATION REFERENCE: Use the location/architecture from reference images as the background.\n\n${combinedPrompt}`;
         }
 
@@ -252,7 +357,7 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
         const allReferenceImages = [
             ...protagonists,
             ...generatedHeroes.map(h => h.image_url).filter(url => !!url) as string[],
-            ...locationRefs
+            ...locationPhotos
         ];
 
         const res = await GeminiService.generateImageBatch(
@@ -323,9 +428,65 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
             <div className="grid md:grid-cols-3 gap-6">
                 {/* Left Col: Inputs */}
                 <div className="md:col-span-1 space-y-6">
-                    {/* Character Upload */}
-                    <div>
-                        <label className="text-app-muted text-xs mb-2 block">{labels.heroes}</label>
+
+                    {/* Explorer Character Profile */}
+                    <div className="bg-gradient-to-br from-brand-primary/10 to-brand-primary/5 border border-brand-primary/30 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <User size={16} className="text-brand-primary" />
+                            <span className="text-brand-primary font-bold text-sm">
+                                {lang === 'ar' ? '👤 شخصية المستكشف' : '👤 Explorer Character'}
+                            </span>
+                        </div>
+
+                        {/* Character Name */}
+                        <div>
+                            <label className="text-[10px] text-app-muted mb-1 block">
+                                {lang === 'ar' ? 'اسم المستكشف:' : 'Explorer Name:'}
+                            </label>
+                            <input
+                                type="text"
+                                placeholder={lang === 'ar' ? 'مثال: فارس' : 'Example: Fares'}
+                                value={characterName}
+                                onChange={(e) => setCharacterName(e.target.value)}
+                                className="w-full bg-app-surface-2 border border-app-border rounded-lg px-3 py-2 text-sm text-app-text placeholder:text-app-muted/50"
+                            />
+                        </div>
+
+                        {/* Character Age */}
+                        <div>
+                            <label className="text-[10px] text-app-muted mb-1 block">
+                                {lang === 'ar' ? 'الفئة العمرية:' : 'Age Group:'}
+                            </label>
+                            <div className="flex gap-2">
+                                {[
+                                    { id: '5-9', label: lang === 'ar' ? '٥-٩ سنوات' : '5-9 years' },
+                                    { id: '10-15', label: lang === 'ar' ? '١٠-١٥ سنة' : '10-15 years' },
+                                    { id: '16-25', label: lang === 'ar' ? '١٦-٢٥ سنة' : '16-25 years' }
+                                ].map(age => (
+                                    <button
+                                        key={age.id}
+                                        onClick={() => setCharacterAge(age.id)}
+                                        className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${characterAge === age.id
+                                            ? 'bg-brand-primary text-white'
+                                            : 'bg-app-surface-2 text-app-muted hover:text-app-text'
+                                            }`}
+                                    >
+                                        {age.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Photo Upload Label */}
+                        <label className="text-app-muted text-xs flex items-center justify-between">
+                            <span>{labels.heroes}</span>
+                            <span className="text-[10px] text-brand-primary">📷 {lang === 'ar' ? 'صورة واضحة للوجه' : 'Clear face photo'}</span>
+                        </label>
+                        <p className="text-[10px] text-app-muted/70 -mt-2">
+                            {lang === 'ar'
+                                ? '💡 نصيحة: استخدم صورة بإضاءة محايدة، وجه واضح، ملابس مميزة'
+                                : '💡 Tip: Use neutral lighting, clear face, distinctive clothing'}
+                        </p>
                         <div className="grid grid-cols-3 gap-2">
                             {/* Manual Uploads */}
                             {protagonists.map((img, idx) => (
@@ -369,40 +530,116 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
                         </div>
                     </div>
 
-                    {/* Location Reference Upload */}
-                    <div>
-                        <label className="text-app-muted text-xs mb-2 flex items-center gap-1">
-                            <MapPin size={12} /> {labels.location}
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {/* Location Photos */}
-                            {locationRefs.map((img, idx) => (
-                                <div key={`loc-${idx}`} className="relative aspect-square border border-emerald-500/50 rounded-lg overflow-hidden group">
-                                    <img src={img} alt={`Location ${idx + 1}`} className="w-full h-full object-cover" />
-                                    <div className="absolute top-1 left-1 bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-md flex items-center gap-0.5">
-                                        <Building2 size={10} />
-                                    </div>
-                                    <button
-                                        onClick={() => removeLocationRef(idx)}
-                                        className="absolute top-1 right-1 bg-black/60 p-0.5 rounded-full text-white hover:bg-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            ))}
+                    {/* Location Section */}
+                    <div className="space-y-4 bg-app-surface border border-emerald-500/30 rounded-xl p-4">
+                        <div className="flex items-center gap-2">
+                            <MapPin size={16} className="text-emerald-500" />
+                            <span className="text-emerald-500 font-bold text-sm">
+                                {lang === 'ar' ? 'الموقع التاريخي' : 'Historical Location'}
+                            </span>
+                        </div>
 
-                            {/* Add Location Button */}
-                            <div className="relative aspect-square border-2 border-dashed border-emerald-500/30 rounded-lg flex flex-col items-center justify-center hover:border-emerald-500 text-app-muted hover:text-emerald-500 transition-colors cursor-pointer bg-emerald-500/5">
-                                <MapPin size={20} />
-                                <span className="text-[8px] mt-1">{lang === 'ar' ? 'موقع' : 'Location'}</span>
+                        {/* Location Name + Research Button */}
+                        <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
                                 <input
-                                    type="file"
-                                    multiple
-                                    onChange={handleLocationUpload}
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
-                                    accept="image/*"
+                                    type="text"
+                                    placeholder={lang === 'ar' ? 'اسم الموقع بالعربية (مثال: قرطاج)' : 'Location name in Arabic'}
+                                    value={locationNameAr}
+                                    onChange={(e) => setLocationNameAr(e.target.value)}
+                                    className="bg-app-surface-2 border border-app-border rounded-lg px-3 py-2 text-sm text-app-text placeholder:text-app-muted/50"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder={lang === 'ar' ? 'اسم الموقع بالإنجليزية (مثال: Carthage)' : 'Location name in English'}
+                                    value={locationNameEn}
+                                    onChange={(e) => setLocationNameEn(e.target.value)}
+                                    className="bg-app-surface-2 border border-app-border rounded-lg px-3 py-2 text-sm text-app-text placeholder:text-app-muted/50"
                                 />
                             </div>
+                            {/* AI Research Button */}
+                            <button
+                                onClick={handleResearchLocation}
+                                disabled={isResearching || (!locationNameAr && !locationNameEn)}
+                                className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                {isResearching ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        {lang === 'ar' ? 'جاري البحث...' : 'Researching...'}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Wand2 size={16} />
+                                        {lang === 'ar' ? '🔍 ابحث عن الحقائق التاريخية تلقائياً' : '🔍 Auto-Research Historical Facts'}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Location Photos (1-3) */}
+                        <div>
+                            <label className="text-xs text-app-muted mb-2 block">
+                                {lang === 'ar' ? 'صور الموقع (1-3 صور)' : 'Location Photos (1-3 images)'}
+                            </label>
+                            <div className="flex gap-2">
+                                {locationPhotos.map((img, idx) => (
+                                    <div key={idx} className="relative w-20 h-20 border border-emerald-500/50 rounded-lg overflow-hidden group">
+                                        <img src={img} alt={`Location ${idx + 1}`} className="w-full h-full object-cover" />
+                                        <button
+                                            onClick={() => removeLocationPhoto(idx)}
+                                            className="absolute top-1 right-1 bg-black/60 p-0.5 rounded-full text-white hover:bg-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                                {locationPhotos.length < 3 && (
+                                    <div className="relative w-20 h-20 border-2 border-dashed border-emerald-500/30 rounded-lg flex flex-col items-center justify-center hover:border-emerald-500 text-app-muted hover:text-emerald-500 transition-colors cursor-pointer">
+                                        <Building2 size={20} />
+                                        <span className="text-[10px] mt-1">{lang === 'ar' ? 'إضافة' : 'Add'}</span>
+                                        <input
+                                            type="file"
+                                            onChange={handleLocationPhotoUpload}
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            accept="image/*"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Knowledge Base */}
+                        <div>
+                            <label className="text-xs text-amber-500 mb-2 block font-bold flex items-center gap-1">
+                                📚 {lang === 'ar' ? 'الحقائق التاريخية (اختياري)' : 'Historical Facts (optional)'}
+                            </label>
+                            <textarea
+                                placeholder={lang === 'ar'
+                                    ? 'أدخل الحقائق التاريخية الموثقة هنا...\n\nمثال:\n• أسسها الفينيقيون عام 814 ق.م\n• دمرتها روما عام 146 ق.م\n• الحروب البونيقية الثلاث...'
+                                    : 'Enter verified historical facts here...\n\nExample:\n• Founded by Phoenicians in 814 BC\n• Destroyed by Rome in 146 BC...'}
+                                value={knowledgeBase}
+                                onChange={(e) => setKnowledgeBase(e.target.value)}
+                                className="w-full bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-app-text placeholder:text-amber-500/40 h-32 resize-none"
+                            />
+                            <p className="text-[10px] text-amber-500/70 mt-1">
+                                {lang === 'ar' ? '⚠️ الذكاء الاصطناعي سيستخدم هذه المعلومات فقط في التعليق الصوتي' : '⚠️ AI will ONLY use these facts in voiceover'}
+                            </p>
+                        </div>
+
+                        {/* Fixed Scene Structure */}
+                        <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-xl p-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-brand-primary font-bold flex items-center gap-2">
+                                    <Film size={14} /> {lang === 'ar' ? 'هيكل القصة' : 'Story Structure'}
+                                </span>
+                                <span className="text-lg font-bold text-brand-primary">
+                                    8 {lang === 'ar' ? 'مشاهد' : 'scenes'} × 8s = 64s
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-brand-primary/70 mt-1">
+                                {lang === 'ar' ? 'وصول → مقدمة → استكشاف × 4 → حقيقة رئيسية → ختام' : 'Arrival → Introduction → Exploration ×4 → Key Fact → Conclusion'}
+                            </p>
                         </div>
                     </div>
 
@@ -417,22 +654,6 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
                                     className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${aspect === r ? 'bg-app-surface-2 text-brand-primary' : 'text-app-muted hover:text-app-text'}`}
                                 >
                                     {r}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Scene Count */}
-                    <div>
-                        <label className="text-app-muted text-xs mb-2 block">{labels.sceneCount}</label>
-                        <div className="flex gap-2 bg-app-surface p-1 rounded-xl border border-app-border">
-                            {[6, 8, 10, 12].map(c => (
-                                <button
-                                    key={c}
-                                    onClick={() => setSceneCount(c)}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${sceneCount === c ? 'bg-app-surface-2 text-brand-primary' : 'text-app-muted hover:text-app-text'}`}
-                                >
-                                    {c}
                                 </button>
                             ))}
                         </div>
@@ -521,15 +742,24 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
                             )}
                         </div>
 
-                        <Button
-                            id="btn-story-gen"
-                            onClick={handleCreateStory}
-                            isLoading={isPlanning}
-                            disabled={!canCreateStory}
-                            className="w-full py-4 text-lg shadow-brand-primary/20"
-                        >
-                            <Film className="w-5 h-5" /> {labels.createStory}
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                id="btn-story-gen"
+                                onClick={() => handleCreateStory(false)}
+                                isLoading={isPlanning}
+                                disabled={!canCreateStory}
+                                className="flex-1 py-4 text-sm shadow-brand-primary/20"
+                            >
+                                <Film className="w-4 h-4" /> {lang === 'ar' ? '🎬 إنشاء مع الصور' : '🎬 Create + Images'}
+                            </Button>
+                            <button
+                                onClick={() => handleCreateStory(true)}
+                                disabled={!canCreateStory || isPlanning}
+                                className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                <Download className="w-4 h-4" /> {lang === 'ar' ? '📋 خطة فقط (تصدير)' : '📋 Plan Only (Export)'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -542,6 +772,14 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
                             <h3 className="text-app-muted font-bold flex items-center gap-2">
                                 <Film size={16} /> {labels.scenes}
                             </h3>
+                            {scenes.length > 0 && (
+                                <button
+                                    onClick={() => setShowExportModal(true)}
+                                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:brightness-110 transition-all"
+                                >
+                                    <Download size={14} /> {lang === 'ar' ? '📋 تصدير للـ Flow' : '📋 Export for Flow'}
+                                </button>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full">
@@ -650,17 +888,28 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
                                     {previewPromptLang === 'ar' ? previewScene.prompt_ar : previewScene.prompt_en}
                                 </div>
 
-                                {/* Voiceovers */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="bg-app-surface p-3 rounded-lg border border-app-border">
-                                        <h5 className="text-xs text-app-muted mb-1 flex items-center gap-1"><Mic size={12} /> Fusha</h5>
-                                        <p className="text-xs text-app-text line-clamp-3">{previewScene.voiceover_fusha}</p>
-                                    </div>
-                                    <div className="bg-app-surface p-3 rounded-lg border border-app-border">
-                                        <h5 className="text-xs text-app-muted mb-1 flex items-center gap-1"><Mic2 size={12} /> Egyptian</h5>
-                                        <p className="text-xs text-app-text line-clamp-3">{previewScene.voiceover_egyptian}</p>
-                                    </div>
+                                {/* Voiceover (Fusha Only) */}
+                                <div className="bg-app-surface p-3 rounded-lg border border-app-border">
+                                    <h5 className="text-xs text-app-muted mb-1 flex items-center gap-1">
+                                        <Mic size={12} /> {lang === 'ar' ? 'التعليق الصوتي (الفصحى)' : 'Voiceover (Fusha)'}
+                                    </h5>
+                                    <p className="text-sm text-app-text leading-relaxed">{previewScene.voiceover_fusha}</p>
                                 </div>
+
+                                {/* Historical Facts */}
+                                {previewScene.historical_facts && (
+                                    <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/30">
+                                        <h5 className="text-xs text-amber-500 mb-1 flex items-center gap-1 font-bold">
+                                            📚 {lang === 'ar' ? 'الحقائق التاريخية' : 'Historical Facts'}
+                                        </h5>
+                                        <p className="text-xs text-app-text">{previewScene.historical_facts}</p>
+                                        {previewScene.historical_period && (
+                                            <span className="inline-block mt-2 px-2 py-0.5 bg-amber-500/20 text-amber-500 rounded text-[10px] font-bold">
+                                                {previewScene.historical_period}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -705,6 +954,163 @@ export const StoryMaker: React.FC<StoryMakerProps> = ({ lang }) => {
                     <Button onClick={regenerateScene} isLoading={isRegenerating}>
                         <Wand2 className="w-4 h-4" /> {labels.apply}
                     </Button>
+                </div>
+            </Modal>
+
+            {/* Export Modal for Flow UI */}
+            <Modal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title={lang === 'ar' ? '📋 تصدير للـ Flow' : '📋 Export for Flow'}
+            >
+                <div className="space-y-4">
+                    {/* Tabs */}
+                    <div className="flex gap-1 bg-app-surface p-1 rounded-xl">
+                        {[
+                            { id: 'character', label: lang === 'ar' ? 'الشخصية' : 'Character' },
+                            { id: 'scenes', label: lang === 'ar' ? 'المشاهد' : 'Scenes' },
+                            { id: 'video', label: lang === 'ar' ? 'الفيديو' : 'Video' },
+                            { id: 'voiceover', label: lang === 'ar' ? 'التعليق' : 'Voiceover' }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setExportTab(tab.id as any)}
+                                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${exportTab === tab.id
+                                    ? 'bg-brand-primary text-white'
+                                    : 'text-app-muted hover:text-app-text'
+                                    }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Character DNA Tab */}
+                    {exportTab === 'character' && (
+                        <div className="space-y-3">
+                            <p className="text-xs text-app-muted">
+                                {lang === 'ar'
+                                    ? '📌 الصق هذا أولاً في Flow مع صورة الشخصية'
+                                    : '📌 Paste this first in Flow with character photo'}
+                            </p>
+                            <div className="bg-app-surface-2 p-4 rounded-xl border border-app-border">
+                                <pre className="text-sm text-app-text whitespace-pre-wrap" dir="auto">
+                                    {generateCharacterDNA()}
+                                </pre>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(generateCharacterDNA());
+                                    alert(lang === 'ar' ? 'تم النسخ!' : 'Copied!');
+                                }}
+                                className="w-full py-2 bg-brand-primary text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2"
+                            >
+                                <Copy size={14} /> {lang === 'ar' ? 'نسخ Character DNA' : 'Copy Character DNA'}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Scene Prompts Tab */}
+                    {exportTab === 'scenes' && (
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {scenes.map((scene, idx) => (
+                                <div key={idx} className="bg-app-surface-2 p-3 rounded-xl border border-app-border">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-brand-primary">
+                                            {lang === 'ar' ? `المشهد ${idx + 1}` : `Scene ${idx + 1}`}
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                const prompt = `Same character ${characterName || 'explorer'} from reference image. ${scene.image_generation?.prompt || scene.description}. Keep exact appearance. ${style} style.`;
+                                                navigator.clipboard.writeText(prompt);
+                                            }}
+                                            className="text-xs text-brand-primary hover:underline flex items-center gap-1"
+                                        >
+                                            <Copy size={10} /> {lang === 'ar' ? 'نسخ' : 'Copy'}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-app-muted line-clamp-3">
+                                        {scene.image_generation?.prompt || scene.description}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Video Prompts Tab */}
+                    {exportTab === 'video' && (
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {scenes.map((scene, idx) => (
+                                <div key={idx} className="bg-app-surface-2 p-3 rounded-xl border border-app-border">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-emerald-500">
+                                            🎬 {lang === 'ar' ? `فيديو ${idx + 1}` : `Video ${idx + 1}`}
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(scene.video_prompt || '');
+                                            }}
+                                            className="text-xs text-emerald-500 hover:underline flex items-center gap-1"
+                                        >
+                                            <Copy size={10} /> {lang === 'ar' ? 'نسخ' : 'Copy'}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-app-muted line-clamp-2">
+                                        {scene.video_prompt || '-'}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Voiceover Tab */}
+                    {exportTab === 'voiceover' && (
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {scenes.map((scene, idx) => (
+                                <div key={idx} className="bg-app-surface-2 p-3 rounded-xl border border-app-border">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-amber-500">
+                                            🎙️ {lang === 'ar' ? `تعليق ${idx + 1}` : `Voice ${idx + 1}`}
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(scene.voiceover_fusha || '');
+                                            }}
+                                            className="text-xs text-amber-500 hover:underline flex items-center gap-1"
+                                        >
+                                            <Copy size={10} /> {lang === 'ar' ? 'نسخ' : 'Copy'}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-app-muted line-clamp-2" dir="rtl">
+                                        {scene.voiceover_fusha || '-'}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Copy All Button */}
+                    <button
+                        onClick={() => {
+                            const allContent = [
+                                '=== CHARACTER DNA ===',
+                                generateCharacterDNA(),
+                                '',
+                                ...scenes.flatMap((scene, idx) => [
+                                    `=== SCENE ${idx + 1} ===`,
+                                    `IMAGE: Same character ${characterName || 'explorer'} from reference. ${scene.image_generation?.prompt || scene.description}`,
+                                    `VIDEO: ${scene.video_prompt || '-'}`,
+                                    `VOICEOVER: ${scene.voiceover_fusha || '-'}`,
+                                    ''
+                                ])
+                            ].join('\n');
+                            navigator.clipboard.writeText(allContent);
+                            alert(lang === 'ar' ? 'تم نسخ الكل!' : 'All copied!');
+                        }}
+                        className="w-full py-3 bg-gradient-to-r from-brand-primary to-purple-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2"
+                    >
+                        <Download size={16} /> {lang === 'ar' ? 'تصدير الكل' : 'Export All'}
+                    </button>
                 </div>
             </Modal>
 
