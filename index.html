@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Promptopia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              cairo: ['Cairo', 'sans-serif'],
+            },
+            colors: {
+              brand: {
+                orange: '#FF7A00',
+              },
+              app: {
+                bg: 'var(--app-bg)',
+                surface: 'var(--app-surface)',
+                surface2: 'var(--app-surface-2)',
+                border: 'var(--app-border)',
+                text: 'var(--app-text)',
+                muted: 'var(--app-muted)',
+                input: 'var(--app-input)',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        /* Default Dark Theme */
+        --app-bg: #000000;
+        --app-surface: #18181b; /* zinc-900 */
+        --app-surface-2: #27272a; /* zinc-800 */
+        --app-border: #27272a; /* zinc-800 */
+        --app-text: #ffffff;
+        --app-muted: #a1a1aa; /* zinc-400 */
+        --app-input: #09090b; /* zinc-950 */
+      }
+      
+      .light {
+        /* Light Theme */
+        --app-bg: #f4f4f5; /* zinc-100 */
+        --app-surface: #ffffff;
+        --app-surface-2: #e4e4e7; /* zinc-200 */
+        --app-border: #d4d4d8; /* zinc-300 */
+        --app-text: #18181b; /* zinc-900 */
+        --app-muted: #52525b; /* zinc-600 */
+        --app-input: #ffffff;
+      }
+
+      body {
+        background-color: var(--app-bg);
+        color: var(--app-text);
+        font-family: 'Cairo', sans-serif;
+        transition: background-color 0.3s, color 0.3s;
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--app-surface); 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--app-surface-2); 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #FF7A00; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
