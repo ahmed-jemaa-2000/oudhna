@@ -141,17 +141,17 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
 
   const infoSteps = [
     {
-      icon: <ImageIcon className="w-6 h-6 text-brand-orange" />,
+      icon: <ImageIcon className="w-6 h-6 text-brand-primary" />,
       title: lang === 'ar' ? 'ارفع صورك' : 'Upload Images',
       desc: lang === 'ar' ? 'يدعم صور متعددة للدمج وتعديل الصور' : 'Supports multiple images for fusion & editing'
     },
     {
-      icon: <Wand2 className="w-6 h-6 text-brand-orange" />,
+      icon: <Wand2 className="w-6 h-6 text-brand-primary" />,
       title: lang === 'ar' ? 'اكتب الوصف' : 'Write Prompt',
       desc: lang === 'ar' ? 'صف خيالك بدقة لدمج الصور أو تعديلها' : 'Describe your vision to fuse or edit images'
     },
     {
-      icon: <Download className="w-6 h-6 text-brand-orange" />,
+      icon: <Download className="w-6 h-6 text-brand-primary" />,
       title: lang === 'ar' ? 'حمل النتيجة' : 'Download',
       desc: lang === 'ar' ? 'احصل على صور بجودة عالية' : 'Get high-quality generated images'
     }
@@ -194,7 +194,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
               
               {/* Left: Upload */}
               <div className="md:col-span-4 flex flex-col gap-4">
-                  <div className="relative group border-2 border-dashed border-app-border hover:border-brand-orange rounded-2xl aspect-square flex items-center justify-center transition-colors bg-app-surface/30">
+                  <div className="relative group border-2 border-dashed border-app-border hover:border-brand-primary rounded-2xl aspect-square flex items-center justify-center transition-colors bg-app-surface/30">
                     <input 
                     type="file" 
                     multiple 
@@ -202,7 +202,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     onChange={handleFileUpload}
                     />
-                    <div className="flex flex-col items-center justify-center text-app-muted group-hover:text-brand-orange transition-colors p-4 text-center">
+                    <div className="flex flex-col items-center justify-center text-app-muted group-hover:text-brand-primary transition-colors p-4 text-center">
                     <Upload className="w-10 h-10 mb-3" />
                     <p className="text-sm font-medium">{labels.upload}</p>
                     </div>
@@ -270,7 +270,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
                                 <button 
                                     key={r}
                                     onClick={() => setAspect(r)}
-                                    className={`flex-1 py-2 rounded-lg text-[10px] md:text-xs font-bold transition-colors ${aspect === r ? 'bg-app-surface-2 text-brand-orange' : 'text-app-muted hover:text-app-text'}`}
+                                    className={`flex-1 py-2 rounded-lg text-[10px] md:text-xs font-bold transition-colors ${aspect === r ? 'bg-app-surface-2 text-brand-primary' : 'text-app-muted hover:text-app-text'}`}
                                 >
                                     {r === 'custom' ? (lang === 'ar' ? 'أصلية' : 'Orig') : r}
                                 </button>
@@ -284,7 +284,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
                                 <button 
                                     key={c}
                                     onClick={() => setCount(c)}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${count === c ? 'bg-app-surface-2 text-brand-orange' : 'text-app-muted hover:text-app-text'}`}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${count === c ? 'bg-app-surface-2 text-brand-primary' : 'text-app-muted hover:text-app-text'}`}
                                 >
                                     {c}
                                 </button>
@@ -298,7 +298,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
                         id={uiContext.generateButtonId}
                         onClick={handleGenerate}
                         isLoading={isGenerating}
-                        className="w-full py-4 text-xl shadow-brand-orange/20"
+                        className="w-full py-4 text-xl shadow-brand-primary/20"
                     >
                         <Wand2 className="w-6 h-6" /> {labels.generate}
                     </Button>
@@ -317,21 +317,21 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
                     {results.map((url, idx) => (
-                        <div key={idx} className="group relative rounded-xl overflow-hidden aspect-square border border-app-border hover:border-brand-orange transition-all shadow-lg animate-fade-in">
+                        <div key={idx} className="group relative rounded-xl overflow-hidden aspect-square border border-app-border hover:border-brand-primary transition-all shadow-lg animate-fade-in">
                             <img src={url} alt="Result" className="w-full h-full object-cover" />
                             
                             {/* Overlay Actions */}
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm">
                                     {/* Preview */}
-                                    <button onClick={() => setPreviewImage(url)} className="p-2 bg-zinc-800 text-white rounded-full hover:bg-brand-orange hover:text-white transition-colors" title={labels.preview}>
+                                    <button onClick={() => setPreviewImage(url)} className="p-2 bg-zinc-800 text-white rounded-full hover:bg-brand-primary hover:text-white transition-colors" title={labels.preview}>
                                     <Eye className="w-4 h-4" />
                                     </button>
                                     {/* Edit */}
-                                    <button onClick={() => openEditModal(url)} className="p-2 bg-zinc-800 text-white rounded-full hover:bg-brand-orange hover:text-white transition-colors" title={labels.edit}>
+                                    <button onClick={() => openEditModal(url)} className="p-2 bg-zinc-800 text-white rounded-full hover:bg-brand-primary hover:text-white transition-colors" title={labels.edit}>
                                     <PenLine className="w-4 h-4" />
                                     </button>
                                     {/* Download */}
-                                    <a href={url} download={`generated-${idx}.png`} className="p-2 bg-zinc-800 text-white rounded-full hover:bg-brand-orange hover:text-white transition-colors" title="Download">
+                                    <a href={url} download={`generated-${idx}.png`} className="p-2 bg-zinc-800 text-white rounded-full hover:bg-brand-primary hover:text-white transition-colors" title="Download">
                                     <Download className="w-4 h-4" />
                                     </a>
                             </div>
@@ -351,8 +351,8 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
          {/* Loading Overlay */}
          {isGenerating && (
              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
-                 <div className="w-12 h-12 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mb-4"></div>
-                 <p className="text-brand-orange font-bold animate-pulse">{lang === 'ar' ? 'جاري التوليد...' : 'Generating...'}</p>
+                 <div className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                 <p className="text-brand-primary font-bold animate-pulse">{lang === 'ar' ? 'جاري التوليد...' : 'Generating...'}</p>
              </div>
          )}
       </div>
@@ -376,7 +376,7 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ lang }) => {
                 value={editPrompt}
                 onChange={(e) => setEditPrompt(e.target.value)}
                 placeholder={labels.editPlaceholder}
-                className="w-full bg-app-input p-4 rounded-xl border border-app-border focus:border-brand-orange outline-none text-app-text resize-none h-32"
+                className="w-full bg-app-input p-4 rounded-xl border border-app-border focus:border-brand-primary outline-none text-app-text resize-none h-32"
                 dir={lang === 'ar' ? 'rtl' : 'ltr'}
              />
              <Button onClick={applyEdit} isLoading={isApplyingEdit}>

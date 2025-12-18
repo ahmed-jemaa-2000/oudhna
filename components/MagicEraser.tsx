@@ -107,7 +107,7 @@ export const MagicEraser: React.FC<MagicEraserProps> = ({ lang }) => {
             <div className="relative aspect-square bg-app-surface rounded-2xl overflow-hidden border border-app-border group">
                  {!image ? (
                      <div className="absolute inset-0 flex flex-col items-center justify-center text-app-muted">
-                         <Upload className="w-8 h-8 mb-2 group-hover:text-brand-orange transition-colors" />
+                         <Upload className="w-8 h-8 mb-2 group-hover:text-brand-primary transition-colors" />
                          <span className="text-center px-4">{labels.upload}</span>
                      </div>
                  ) : (
@@ -121,7 +121,7 @@ export const MagicEraser: React.FC<MagicEraserProps> = ({ lang }) => {
                     value={watermarkDesc}
                     onChange={(e) => setWatermarkDesc(e.target.value)}
                     placeholder={labels.descPh}
-                    className="w-full h-32 bg-app-surface rounded-xl p-4 text-app-text outline-none border border-app-border focus:border-brand-orange transition-colors resize-none"
+                    className="w-full h-32 bg-app-surface rounded-xl p-4 text-app-text outline-none border border-app-border focus:border-brand-primary transition-colors resize-none"
                     dir={lang === 'ar' ? 'rtl' : 'ltr'}
                  />
                  <Button id="btn-erase" onClick={handleErase} isLoading={isProcessing} disabled={!image}>
@@ -138,7 +138,7 @@ export const MagicEraser: React.FC<MagicEraserProps> = ({ lang }) => {
                    - Removed aspect-square/video to allow container to adapt to image height.
                    - Uses the "Before" image to define the container size.
                 */}
-                <div className="relative w-full rounded-2xl overflow-hidden cursor-ew-resize select-none border border-brand-orange/30 shadow-2xl shadow-brand-orange/10 group">
+                <div className="relative w-full rounded-2xl overflow-hidden cursor-ew-resize select-none border border-brand-primary/30 shadow-2xl shadow-brand-primary/10 group">
                     
                     {/* Before Image (Background/Size Reference) */}
                     <img src={image} alt="Before" className="block w-full h-auto" />
@@ -154,10 +154,10 @@ export const MagicEraser: React.FC<MagicEraserProps> = ({ lang }) => {
 
                     {/* Slider Handle */}
                     <div 
-                        className="absolute inset-y-0 w-0.5 bg-brand-orange/80 shadow-[0_0_15px_#FF7A00]"
+                        className="absolute inset-y-0 w-0.5 bg-brand-primary/80 shadow-[0_0_15px_#8B5CF6]"
                         style={{ left: `${sliderVal}%` }}
                     >
-                        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-brand-orange rounded-full flex items-center justify-center shadow-lg text-black font-bold text-xs">
+                        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-brand-primary rounded-full flex items-center justify-center shadow-lg text-black font-bold text-xs">
                             <span className="sr-only">Slide</span>
                             ↔
                         </div>
@@ -175,13 +175,13 @@ export const MagicEraser: React.FC<MagicEraserProps> = ({ lang }) => {
 
                     {/* Overlay Action Buttons (Visible on Hover) */}
                     <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-                        <button onClick={() => setPreviewImage(processedImage)} className="p-2 bg-black/80 text-white rounded-full hover:bg-brand-orange" title={labels.preview}>
+                        <button onClick={() => setPreviewImage(processedImage)} className="p-2 bg-black/80 text-white rounded-full hover:bg-brand-primary" title={labels.preview}>
                             <Eye size={16} />
                         </button>
-                        <button onClick={openRefineModal} className="p-2 bg-black/80 text-white rounded-full hover:bg-brand-orange" title={labels.edit}>
+                        <button onClick={openRefineModal} className="p-2 bg-black/80 text-white rounded-full hover:bg-brand-primary" title={labels.edit}>
                             <PenLine size={16} />
                         </button>
-                        <a href={processedImage} download="magic-eraser-result.png" className="p-2 bg-black/80 text-white rounded-full hover:bg-brand-orange" title="Download">
+                        <a href={processedImage} download="magic-eraser-result.png" className="p-2 bg-black/80 text-white rounded-full hover:bg-brand-primary" title="Download">
                             <Download size={16} />
                         </a>
                     </div>
@@ -206,7 +206,7 @@ export const MagicEraser: React.FC<MagicEraserProps> = ({ lang }) => {
                     value={refinePrompt}
                     onChange={(e) => setRefinePrompt(e.target.value)}
                     placeholder="Describe further edits..."
-                    className="w-full bg-app-input p-4 rounded-xl border border-app-border focus:border-brand-orange outline-none text-app-text resize-none h-32"
+                    className="w-full bg-app-input p-4 rounded-xl border border-app-border focus:border-brand-primary outline-none text-app-text resize-none h-32"
                     dir={lang === 'ar' ? 'rtl' : 'ltr'}
                  />
                  <Button onClick={handleRefine} isLoading={isRefining}>

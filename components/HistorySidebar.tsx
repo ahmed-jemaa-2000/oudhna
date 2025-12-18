@@ -54,7 +54,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ isOpen, onClose,
             {/* Sidebar */}
             <div className={`fixed top-0 bottom-0 ${lang === 'ar' ? 'left-0' : 'right-0'} w-80 md:w-96 bg-app-surface border-l border-app-border z-[100] transform transition-transform duration-300 shadow-2xl ${isOpen ? 'translate-x-0' : (lang === 'ar' ? '-translate-x-full' : 'translate-x-full')}`}>
                 <div className="flex justify-between items-center p-4 border-b border-app-border bg-app-surface/90 backdrop-blur">
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-brand-orange">
+                    <h2 className="text-xl font-bold flex items-center gap-2 text-brand-primary">
                         <Clock size={20} /> {labels.title}
                     </h2>
                     <button onClick={onClose} className="p-2 hover:bg-app-surface-2 rounded-full text-app-muted hover:text-app-text">
@@ -65,7 +65,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ isOpen, onClose,
                 <div className="overflow-y-auto h-[calc(100vh-64px)] p-4 space-y-4">
                     {isLoading ? (
                         <div className="flex justify-center p-8">
-                            <span className="animate-spin h-6 w-6 border-2 border-brand-orange rounded-full border-t-transparent"></span>
+                            <span className="animate-spin h-6 w-6 border-2 border-brand-primary rounded-full border-t-transparent"></span>
                         </div>
                     ) : items.length === 0 ? (
                         <div className="text-center text-app-muted py-10">
@@ -73,7 +73,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ isOpen, onClose,
                         </div>
                     ) : (
                         items.map((item) => (
-                            <div key={item.id} className="bg-app-bg border border-app-border rounded-xl overflow-hidden group hover:border-brand-orange/50 transition-colors">
+                            <div key={item.id} className="bg-app-bg border border-app-border rounded-xl overflow-hidden group hover:border-brand-primary/50 transition-colors">
                                 <div className="p-3 border-b border-app-border flex justify-between items-start">
                                     <div>
                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${

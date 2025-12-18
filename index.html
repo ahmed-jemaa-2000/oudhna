@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Promptopia</title>
+    <title>نجيبة - Najiba Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,11 @@
             },
             colors: {
               brand: {
-                orange: '#FF7A00',
+                primary: '#8B5CF6',    // Violet
+                secondary: '#A78BFA',  // Light violet
+                accent: '#C4B5FD',     // Lavender
+                glow: '#7C3AED',       // Deep violet for glow effects
+                orange: '#FF7A00',     // Keep for backward compat
               },
               app: {
                 bg: 'var(--app-bg)',
@@ -36,24 +40,24 @@
     </script>
     <style>
       :root {
-        /* Default Dark Theme */
-        --app-bg: #000000;
-        --app-surface: #18181b; /* zinc-900 */
-        --app-surface-2: #27272a; /* zinc-800 */
-        --app-border: #27272a; /* zinc-800 */
+        /* Default Dark Theme - Premium Dark */
+        --app-bg: #0a0a0f;
+        --app-surface: #13131a;
+        --app-surface-2: #1e1e2a;
+        --app-border: #2a2a3a;
         --app-text: #ffffff;
-        --app-muted: #a1a1aa; /* zinc-400 */
-        --app-input: #09090b; /* zinc-950 */
+        --app-muted: #9ca3af;
+        --app-input: #0d0d14;
       }
       
       .light {
-        /* Light Theme */
-        --app-bg: #f4f4f5; /* zinc-100 */
+        /* Light Theme - Clean & Modern */
+        --app-bg: #faf5ff;
         --app-surface: #ffffff;
-        --app-surface-2: #e4e4e7; /* zinc-200 */
-        --app-border: #d4d4d8; /* zinc-300 */
-        --app-text: #18181b; /* zinc-900 */
-        --app-muted: #52525b; /* zinc-600 */
+        --app-surface-2: #f3e8ff;
+        --app-border: #e9d5ff;
+        --app-text: #1f1f1f;
+        --app-muted: #6b7280;
         --app-input: #ffffff;
       }
 
@@ -76,9 +80,10 @@
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #FF7A00; 
+        background: #8B5CF6; 
       }
     </style>
+
   <script type="importmap">
 {
   "imports": {

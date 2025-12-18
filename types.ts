@@ -114,7 +114,13 @@ export interface StoryScene {
   image_generation: {
     prompt: string;
     negative_prompt: string;
-  }
+  };
+  // Veo 3.1 Video Prompt Fields
+  video_prompt?: string;        // English video prompt optimized for Veo 3.1
+  camera_movement?: string;     // e.g., "dolly in slowly", "orbit clockwise", "static"
+  scene_duration?: number;      // Duration in seconds (default: 8)
+  character_bible?: string;     // Full character description repeated for consistency
+  mood?: string;                // Emotional tone: "tense", "joyful", "mysterious", etc.
 }
 
 export interface StoryboardResponse extends BaseResponse {
@@ -127,9 +133,9 @@ export interface StoryboardResponse extends BaseResponse {
 }
 
 export interface CharacterProfile {
-    name: string;
-    visual_description: string;
-    image_url?: string;
+  name: string;
+  visual_description: string;
+  image_url?: string;
 }
 
 export interface ErrorResponse extends BaseResponse {
@@ -145,28 +151,28 @@ export interface ErrorResponse extends BaseResponse {
 export type HistoryType = 'image' | 'story' | 'eraser';
 
 export interface BaseHistoryItem {
-    id: string;
-    timestamp: number;
-    type: HistoryType;
+  id: string;
+  timestamp: number;
+  type: HistoryType;
 }
 
 export interface ImageHistoryItem extends BaseHistoryItem {
-    type: 'image';
-    prompt: string;
-    images: string[]; // List of generated image URLs
+  type: 'image';
+  prompt: string;
+  images: string[]; // List of generated image URLs
 }
 
 export interface StoryHistoryItem extends BaseHistoryItem {
-    type: 'story';
-    title: string;
-    script: string;
-    scenes: StoryScene[];
+  type: 'story';
+  title: string;
+  script: string;
+  scenes: StoryScene[];
 }
 
 export interface EraserHistoryItem extends BaseHistoryItem {
-    type: 'eraser';
-    original: string;
-    result: string;
+  type: 'eraser';
+  original: string;
+  result: string;
 }
 
 export type HistoryItem = ImageHistoryItem | StoryHistoryItem | EraserHistoryItem;
